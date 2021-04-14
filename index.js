@@ -68,14 +68,14 @@ io.on('connection', function(socket){
 
   socket.on('join_room', (roomId) => {
     console.log('join_room :' + socket.data.id);
-    
+
     socket.data.roomId = roomId;
     rooms[roomId].currentClient++;
     socket.join(roomId);
 
     io.to(roomId).emit('on_client_join_room',socket.data);
 
-    rooms[roomId].accounts.push(data);
+    rooms[roomId].accounts.push(socket.data);
     console.log(rooms[roomId]);
     socket.emit('on_join_room', rooms[roomId]);
   });
