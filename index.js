@@ -72,7 +72,7 @@ io.on('connection', function(socket){
     socket.join(roomId);
     io.to(roomId).emit('on_client_join_room',data);
     rooms[roomId].accounts.push(data);
-
+    console.log(rooms[roomId]);
     socket.emit('on_join_room', rooms[roomId]);
   });
   
