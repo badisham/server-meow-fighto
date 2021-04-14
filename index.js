@@ -41,22 +41,28 @@ io.on('connection', function(socket){
 
   let curRoomId;
   socket.on('create_room', () => {
-    const roomId = uuidv4();
-    socket.roomId = roomId;
-    curRoomId = roomId;
-    if(!('roomId' in rooms)){
-      console.log('create_room');
-      rooms[roomId] = {
-        id: roomId,
-        name: socket.data.name,
-        currentClient: 1,
-        maxClient: 8,
-        accounts: [socket.data]
+    console.log('create_room');
+    try{
+
+      const roomId = uuidv4();
+      socket.roomId = roomId;
+      curRoomId = roomId;
+      if(!('roomId' in rooms)){
+        console.log('create_room');
+        rooms[roomId] = {
+          id: roomId,
+          name: socket.data.name,
+          currentClient: 1,
+          maxClient: 8,
+          accounts: [socket.data]
+        }
+      }else{
+        console.log('room exist');
       }
-    }else{
-      console.log('room exist');
+      socket.emit('on_join_room', rooms[roomId]);
+    }catch(e){
+      console.log(e.message);
     }
-    socket.emit('on_join_room', rooms[roomId]);
   });
 
   socket.on('join_room', (msg) => {
