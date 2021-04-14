@@ -12,7 +12,7 @@ var amountAccount = 0;
 let sockets = {};
 let rooms = {};
 io.on('connection', function(socket){
-  console.log('Check connect' + socket.id);
+  console.log('Check connect:' + socket.id);
   
   socket.on('login', function(msg){
     amountAccount ++;
@@ -35,7 +35,7 @@ io.on('connection', function(socket){
   socket.on('get_room', () => {
     console.log('get_room');
     const r = Object.values(rooms) || [];
-    console.log(r[0]);
+    console.log(r);
     socket.emit('on_get_room', r || []);
   });
 
@@ -43,7 +43,6 @@ io.on('connection', function(socket){
   socket.on('create_room', () => {
     console.log('create_room');
     try{
-
       const roomId = uuidv4();
       socket.roomId = roomId;
       curRoomId = roomId;
@@ -56,6 +55,7 @@ io.on('connection', function(socket){
           maxClient: 8,
           accounts: [socket.data]
         }
+        socket.join(roomId);
       }else{
         console.log('room exist');
       }
@@ -65,10 +65,21 @@ io.on('connection', function(socket){
     }
   });
 
-  socket.on('join_room', (msg) => {
-    console.log('join_room');
-    socket.emit('on_join_room', rooms[msg]);
+  socket.on('join_room', (roomId) => {
+    const data = socket.data;
+    console.log('join_room :' + data.id);
+    socket.join(roomId);
+    io.to(roomId).emit('on_client_join_room',data);
+    rooms[roomId].accounts.push(data);
+
+    socket.emit('on_join_room', rooms[roomId]);
   });
+  
+  socket.on('leave_room', () => {
+    socket.leave(socket.roomId)
+    io.to(roomId).emit('on_client_leave_room',socket.data.id);
+  });
+
 
 
 
@@ -80,7 +91,6 @@ io.on('connection', function(socket){
     }]);
   });
 });
-
 var port = process.env.PORT || 3000;
 http.listen(port, function(){
   console.log('listening on *:'+ port);
