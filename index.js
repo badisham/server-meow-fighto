@@ -21,6 +21,7 @@ io.on('connection', function(socket){
       console.log('Account ID : ' + data.id);
       socket.data = data;
       socket.data.name = data.id;
+      socket.data.avatar = 'nyan';
       sockets[socket.id] = socket;
     }
     socket.emit('on_set_client', sockets[socket.id].data);
@@ -79,9 +80,6 @@ io.on('connection', function(socket){
     socket.leave(socket.roomId)
     io.to(roomId).emit('on_client_leave_room',socket.data.id);
   });
-
-
-
 
 
   socket.on('chat', function(msg){
