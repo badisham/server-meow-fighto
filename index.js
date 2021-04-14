@@ -45,7 +45,7 @@ io.on('connection', function(socket){
     console.log('amount room :' + Object.values(rooms).length);
     try{
       const roomId = uuidv4();
-      socket.roomId = roomId;
+      socket.data.roomId = roomId;
       curRoomId = roomId;
       if(!('roomId' in rooms)){
         console.log('create_room');
@@ -70,6 +70,7 @@ io.on('connection', function(socket){
     const data = socket.data;
     console.log('join_room :' + data.id);
     socket.join(roomId);
+    data.roomId = roomId;
     rooms[roomId].currentClient++;
 
     io.to(roomId).emit('on_client_join_room',data);
@@ -80,7 +81,7 @@ io.on('connection', function(socket){
   });
   
   socket.on('leave_room', () => {
-    const roomId = socket.roomId;
+    const roomId = socket.data.roomId;
     rooms[roomId].currentClient--;
     if(rooms[roomId].currentClient <= 0){
       delete rooms[roomId];
