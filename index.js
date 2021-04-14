@@ -42,7 +42,7 @@ io.on('connection', function(socket){
 
   let curRoomId;
   socket.on('create_room', () => {
-    console.log('create_room');
+    console.log('amount room :' + Object.values(rooms).length);
     try{
       const roomId = uuidv4();
       socket.roomId = roomId;
@@ -70,14 +70,22 @@ io.on('connection', function(socket){
     const data = socket.data;
     console.log('join_room :' + data.id);
     socket.join(roomId);
+    rooms[roomId].currentClient++;
+
     io.to(roomId).emit('on_client_join_room',data);
+
     rooms[roomId].accounts.push(data);
     console.log(rooms[roomId]);
     socket.emit('on_join_room', rooms[roomId]);
   });
   
   socket.on('leave_room', () => {
-    socket.leave(socket.roomId)
+    const roomId = socket.roomId;
+    rooms[roomId].currentClient--;
+    if(rooms[roomId].currentClient <= 0){
+      delete rooms[roomId];
+    }
+    socket.leave(roomId);
     io.to(roomId).emit('on_client_leave_room',socket.data.id);
   });
 
