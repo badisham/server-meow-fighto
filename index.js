@@ -81,6 +81,7 @@ io.on('connection', function(socket){
   });
   
   socket.on('leave_room', () => {
+    console.log('leave_room');
     const roomId = socket.data.roomId;
     rooms[roomId].currentClient--;
     if(rooms[roomId].currentClient <= 0){
