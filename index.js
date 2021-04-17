@@ -31,29 +31,27 @@ const timer = [8,15,20];
 io.on('connection', function(socket){
   console.log('connected');
   
-  socket.on('login', function(msg){
+  socket.on('login', function(clientId){
     amountAccount ++;
-    const data = JSON.parse(msg);
-    if(!(data.id in accounts)){
-      console.log('Account ID : ' + data.id);
-      accounts[data.id] = {
-        id: data.id,
-        name: data.id,
+    if(!(clientId in accounts)){
+      console.log('Account ID : ' + clientId);
+      accounts[clientId] = {
+        id: clientId,
+        name: clientId,
         avatar: 'nyan',
       }
-      sockets[data.id] = socket;
-      console.log(typeof(sockets[data.id]));
+      socket.clientId = clientId;
+      sockets[clientId] = socket;
+      console.log(typeof(sockets[clientId]));
     }
     console.log('login');
-    socket.emit('on_login', JSON.stringify(accounts[data.id]));
+    socket.emit('on_login', JSON.stringify(accounts[clientId]));
   });
 
-  socket.on('change_name', (msg) => {
-    console.log('change_name' + msg);
-    const data = JSON.parse(msg);
-    accounts[data.id].name = data.name;
-
-    socket.emit('on_change_name', JSON.stringify(accounts[data.id]));
+  socket.on('change_name', (name) => {
+    const clientId = socket.clientId;
+    accounts[clientId].name = name;
+    socket.emit('on_change_name', JSON.stringify(accounts[clientId]));
   });
   
   socket.on('get_room', () => {
@@ -62,7 +60,8 @@ io.on('connection', function(socket){
     socket.emit('on_get_room', JSON.stringify(r || []));
   });
 
-  socket.on('create_room', (clientId) => {
+  socket.on('create_room', () => { //--
+    const clientId = socket.clientId;
     console.log('amount room :' + Object.values(rooms).length);
     try{
       const roomId = uuidv4();
@@ -91,24 +90,24 @@ io.on('connection', function(socket){
     }
   });
 
-  socket.on('join_room', (msg) => {
-    const data = JSON.parse(msg);
-    const roomId = data.roomId;
+  socket.on('join_room', (roomId) => {
+    const clientId = socket.clientId;
 
-    accounts[data.id].roomId = roomId;
-    console.log('join_room :' + accounts[data.id].name);
+    accounts[clientId].roomId = roomId;
+    console.log('join_room :' + accounts[clientId].name);
     rooms[roomId].currentClient++;
     socket.join(roomId);
 
-    io.to(roomId).emit('on_client_join_room', JSON.stringify(accounts[data.id]));
-    rooms[roomId].accountIds.push(data.id);
+    io.to(roomId).emit('on_client_join_room', JSON.stringify(accounts[clientId]));
+    rooms[roomId].accountIds.push(clientId);
     const room = rooms[roomId];
     room.accounts = room.accountIds.map(id => accounts[id]);
     socket.emit('on_join_room', JSON.stringify(room));
   });
   
-  socket.on('leave_room', (clientId) => {
+  socket.on('leave_room', () => { //--
     console.log('leave_room');
+    const clientId = socket.clientId;
     const roomId = accounts[clientId].roomId;
     
     rooms[roomId].accountIds.remove(clientId);
@@ -122,31 +121,28 @@ io.on('connection', function(socket){
     io.to(roomId).emit('on_client_leave_room', accounts[clientId].id);
   });
 
-  socket.on('change_timer', function(msg){
-    const data = JSON.parse(msg);
-    const roomId = data.roomId;
-    rooms[data.roomId].timer = timer[data.timerIndex];
-    io.to(roomId).emit('on_change_timer', data.timerIndex);
+  socket.on('change_timer', function(timerIndex){ //--
+    const roomId = accounts[socket.clientId].roomId;
+    rooms[roomId].timer = timer[timerIndex];
+    io.to(roomId).emit('on_change_timer', timerIndex);
   });
 
-  socket.on('kick_client', function(msg){
-    const data = JSON.parse(msg);
-    const roomId = data.roomId;
+  socket.on('kick_client', function(clientId){ //--clientId kick
+    const roomId = accounts[clientId].roomId;
 
-    io.to(roomId).emit('on_kick_client', data.clientId);
-    sockets[data.clientId].leave(roomId);
+    io.to(roomId).emit('on_kick_client', clientId);
+    sockets[clientId].leave(roomId);
   });
   
-  socket.on('start_game', function(roomId){
-    io.to(roomId).emit('on_start_game');
+  socket.on('start_game', function(){ //--
+    io.to(accounts[socket.clientId].roomId).emit('on_start_game');
   });
 
-  socket.on('on_scene_game_loaded', function(msg){
+  socket.on('on_scene_game_loaded', function(){ //--
     console.log('on_scene_game_loaded');
-    const data = JSON.parse(msg);
-    const roomId = data.roomId;
+    const roomId = accounts[socket.clientId].roomId;
     let isLoaded = true;
-    accounts[data.clientId].isLoaded = true;
+    accounts[socket.clientId].isLoaded = true;
     for (const clientId of rooms[roomId].accountIds) {
       if(!accounts[clientId].isLoaded){
         isLoaded = false;
@@ -166,7 +162,8 @@ io.on('connection', function(socket){
 				maxHp: 20,
 				isStun: false,
 				card: {
-					ids: GetCard(room.deck,5),
+					// ids: GetCard(room.deck,5),
+          ids: ['cr1','cr2','ul1','ul2','ul3','he1','he2','sb1','sb2','pu01','pu02']
 				}
 			};
 			positionIndex++;
@@ -188,7 +185,17 @@ io.on('connection', function(socket){
     }
   });
 
-  socket.on('game_end',(roomId) => {
+  socket.on('meow',(msg) => {
+    const data = JSON.parse(msg);
+    data.targetsId;
+    data.cardsId;
+    
+
+    const account = accounts[socket.clientId];
+    io.to(account.roomId).emit('on_meow',)
+  });
+
+  socket.on('game_end',(roomId) => { //--
     for (const clientId of rooms[roomId].accountIds) {
       accounts[clientId].isLoaded = false;
     }
@@ -202,7 +209,15 @@ io.on('connection', function(socket){
       }]);
   });
 
-
+  socket.on("disconnect", () => {
+    console.log('disconnect');
+    const roomId = accounts[socket.clientId].roomId;
+    if(roomId){
+      socket.leave(roomId);
+      delete rooms[roomId];
+    }
+    delete accounts[socket.clientId];
+  });
   console.log('Check connect:' + socket.id);
 });
 
