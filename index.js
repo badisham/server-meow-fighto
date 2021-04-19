@@ -166,7 +166,7 @@ io.on('connection', function(socket){
 				isStun: false,
 				card: {
 					// ids: GetCard(room.deck,5),
-          ids: ['cr1','cr2','ul1','ul2','ul3','he1','he2','sb1','sb2','pu01','pu02']
+          ids: ['cr1','cr2','ul1','gu1','co1','he1','he2','sb1','sb2','pu01','pu02']
 				}
 			};
 			positionIndex++;
@@ -198,12 +198,11 @@ io.on('connection', function(socket){
     const roomId = socket.roomId;
 
     // CheckCard Client
-    data.cardsId.forEach(cId => {
-      if(!accounts[socket.clientId].card.ids.includes(cId)){
-        socket.emit('on_not_card');
-        return;
-      }
-    });
+
+    if(!CheckClientCard(data.cardsId, socket.clientId)){
+      socket.emit('on_not_card');
+      return;
+    }
 
     // ATK
     let isAtk = false;
@@ -214,7 +213,10 @@ io.on('connection', function(socket){
     });
     if(isAtk){
       console.log('Atk');
-      io.to(roomId).emit('protect',msg);
+      data.targetsId.forEach(clientId => {
+        accounts[clientId].getDamage = data.cardsId.length;
+      });
+      io.to(roomId).emit('on_action',msg);
     }
 
     // STUN
@@ -256,6 +258,42 @@ io.on('connection', function(socket){
     });
   });
 
+  socket.on('on_protect',(cardId) => { //--
+    console.log('on_protect');
+    const roomId = socket.roomId;
+    if(cardId == ""){
+      const damage = accounts[socket.clientId].getDamage;
+      accounts[socket.clientId].hp -= damage;
+      const getDamage = {
+        targetId: socket.clientId,
+        damage: damage
+      }
+      io.to(roomId).emit('get_damage',JSON.stringify(getDamage));
+      return;
+    }else{
+      // Protect
+
+      if(!CheckClientCard([cardId], socket.clientId)){
+        socket.emit('on_not_card');
+        return;
+      }
+      if(cardId.includes("gu")){
+        accounts[socket.clientId].getDamage--;
+        io.to(roomId).emit('on_protect',socket.clientId);
+      }else if(cardId.includes("co")){
+
+        const clientCounter = {
+          targetsId: [socket.clientId],
+          cardsId: [cardId]
+        }
+        io.to(roomId).emit('on_counter',JSON.stringify(clientCounter));
+      }
+
+    }
+
+  });
+
+
   socket.on('game_end',(roomId) => { //--
     for (const clientId of rooms[roomId].accountIds) {
       accounts[clientId].isLoaded = false;
@@ -281,6 +319,15 @@ io.on('connection', function(socket){
   });
   console.log('Check connect:' + socket.id);
 });
+
+function CheckClientCard(cardsId, clientId) {
+    cardsId.forEach(cId => {
+      if(!accounts[clientId].card.ids.includes(cId)){
+        return false;
+      }
+    });
+    return true;
+}
 
 Array.prototype.remove = function() {
   var what, a = arguments, L = a.length, ax;
