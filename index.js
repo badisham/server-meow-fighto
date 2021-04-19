@@ -75,8 +75,9 @@ io.on('connection', function(socket){
           name: account.name,
           currentClient: 1,
           maxClient: 8,
-          accountIds: [clientId]
+          accountIds: [clientId],
         }
+        socket.roomId = roomId;
         socket.join(roomId);
       }else{
         console.log('room exist');
@@ -96,6 +97,7 @@ io.on('connection', function(socket){
     accounts[clientId].roomId = roomId;
     console.log('join_room :' + accounts[clientId].name);
     rooms[roomId].currentClient++;
+    socket.roomId = roomId;
     socket.join(roomId);
 
     io.to(roomId).emit('on_client_join_room', JSON.stringify(accounts[clientId]));
@@ -109,6 +111,7 @@ io.on('connection', function(socket){
     console.log('leave_room');
     const clientId = socket.clientId;
     const roomId = accounts[clientId].roomId;
+    delete socket.roomId;
     
     rooms[roomId].accountIds.remove(clientId);
     rooms[roomId].currentClient--;
@@ -167,6 +170,7 @@ io.on('connection', function(socket){
 				}
 			};
 			positionIndex++;
+      accounts[id] = {...accounts[id],...acc};
 			return {...accounts[id],...acc};
 		});
 		for (const account of room.accounts) {
@@ -186,13 +190,70 @@ io.on('connection', function(socket){
   });
 
   socket.on('meow',(msg) => {
-    const data = JSON.parse(msg);
-    data.targetsId;
-    data.cardsId;
+    console.log(msg);
     
+    const data = JSON.parse(msg);
+    const cardType = data.cardsId[0];
+    const clientId1 = data.targetsId[0];
+    const roomId = socket.roomId;
 
-    const account = accounts[socket.clientId];
-    io.to(account.roomId).emit('on_meow',)
+    // CheckCard Client
+    data.cardsId.forEach(cId => {
+      if(!accounts[socket.clientId].card.ids.includes(cId)){
+        socket.emit('on_not_card');
+        return;
+      }
+    });
+
+    // ATK
+    let isAtk = false;
+    cardAtk.forEach(c => {
+      if(cardType.includes(c)){
+        isAtk = true;
+      }
+    });
+    if(isAtk){
+      console.log('Atk');
+      io.to(roomId).emit('protect',msg);
+    }
+
+    // STUN
+    if(cardType.includes("st")){
+      accounts[clientId1].isStun = true;
+      io.to(roomId).emit('on_stun',msg);
+    }
+    
+    // HEAL
+    if(cardType.includes("he")){
+      const healHp = data.cardsId.length + (data.cardsId.length > 1 ? 1 : 0);
+      accounts[clientId1].hp += healHp;
+      io.to(roomId).emit('on_heal',msg);
+    }
+
+    // STEAL
+    if(cardType.includes("ste")){
+      const cardId = GetCard(accounts[clientId1].card.ids ,1); 
+
+      // send client steal
+      socket.emit('on_steal',cardId[0]);
+      // send target client
+      sockets[clientId1].emit('get_steal',cardId[0]);
+      // send all
+      io.to(roomId).emit('on_other_steal',msg)
+    }
+
+    // RECYCLE
+    if(cardType.includes("re")){
+      
+      const lastCardId = rooms[roomId].trash[rooms[roomId].trash.length-1];
+      socket.emit('on_recycle',lastCardId)
+      io.to(roomId).emit('on_other_steal',msg)
+    }
+
+    // TRASH
+    data.cardsId.forEach(cId => {
+      rooms[roomId].trash.push(cId);
+    });
   });
 
   socket.on('game_end',(roomId) => { //--
@@ -232,7 +293,7 @@ Array.prototype.remove = function() {
   return this;
 };
 
-
+const cardAtk = ['pu','sb','ul','cr','co'];
 function GetDeck() {
 	let deck = [];
 	for (let f = 0; f < 5; f++) {
