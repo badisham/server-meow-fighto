@@ -279,7 +279,12 @@ io.on('connection', function(socket){
       }
       if(cardId.includes("gu")){
         accounts[socket.clientId].getDamage--;
-        io.to(roomId).emit('on_protect',socket.clientId);
+        const damage = accounts[socket.clientId].getDamage;
+        const getDamage = {
+          targetId: socket.clientId,
+          damage: damage
+        }
+        io.to(roomId).emit('get_damage',JSON.stringify(getDamage));
       }else if(cardId.includes("co")){
 
         const clientCounter = {
